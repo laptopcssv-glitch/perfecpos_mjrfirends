@@ -13,5 +13,6 @@ function nav(page,btn){
     usuarios:renderUserList,
     cortesHist:renderCortesHistorial,
     notificaciones:renderNotificaciones,
+    configuracion:loadConfigForm,
   })[page]?.();
 }

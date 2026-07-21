@@ -186,6 +186,8 @@ function confirmSale(){
 
 function printTicket(v){
   const pa = g('printArea');
+  const config = getCompanyConfig();
+  
   const itemRows = v.items.map(i => {
     const desc = i.descripcion||i.nombre||i.name||'';
     const qty = i.qty||i.cantidad||0;
@@ -197,11 +199,14 @@ function printTicket(v){
       <td style="text-align:right;white-space:nowrap">$${tot}</td>
     </tr>`;
   }).join('');
+  
   const metodoLines = v.metodo.split('\n').filter(l=>l&&!l.startsWith('TOTAL'));
+  
   pa.innerHTML = `
-    <div class="tk-title">Perfect Pet</div>
-    <div class="tk-sub">AV. HIDALGO #65, AMECAMECA</div>
-    <div class="tk-sub">@perfect_pet_amecameca</div>
+    <div class="tk-title">${config.companyName}</div>
+    <div class="tk-sub">${config.address}</div>
+    <div class="tk-sub">${config.website}${config.phone ? ' | '+config.phone : ''}</div>
+    ${config.slogan ? `<div class="tk-sub" style="font-size:8px;color:#888;margin-top:2px">${config.slogan}</div>` : ''}
     <hr class="tk-divider">
     <div class="tk-row"><span>Venta: <b>${v.seqLabel||v.id}</b></span><span>Caja ${v.caja}</span></div>
     <div class="tk-row"><span>${v.fecha}</span><span>${v.cajero}</span></div>
@@ -221,7 +226,8 @@ function printTicket(v){
     <div class="tk-row"><span>Cambio:</span><span><b>$${v.cambio.toFixed(2)}</b></span></div>
     <hr class="tk-divider">
     <div class="tk-thanks">¡Gracias por su compra!</div>
-    <div class="tk-note">Precios pueden variar segun condicion del pelo/piel.<br>Ectoparasitos: costo adicional.<br>Sin devoluciones despues de 24hrs.</div>`;
+    <div class="tk-note">${config.slogan || 'Precios pueden variar segun condicion del pelo/piel.'}<br>Sin devoluciones despues de 24hrs.</div>`;
+    
   pa.style.display='block';
   window.print();
   setTimeout(()=>{ pa.style.display='none'; pa.innerHTML=''; }, 800);

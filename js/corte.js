@@ -59,16 +59,13 @@ function renderCorte(){
   const caja=S.caja;
   const td=getCorteDay();
   const isToday=td===today();
-  // Show/hide contador only for today
   g('contadorSection').style.display=isToday?'':'none';
   const movs=dba('movimientos').filter(m=>m.caja===caja);
-  // Saldo inicial
   const saldoH=movs.filter(m=>m.tipo==='saldo_inicial'&&m.fechaISO===td);
   const lastS=saldoH.length?saldoH[saldoH.length-1]:null;
   const saldoIni=lastS?lastS.monto:0;
   g('cSaldoIni').textContent='$'+saldoIni.toFixed(2);
   g('cSaldoIniSub').textContent=lastS?'Registrado: '+lastS.fecha:'Sin apertura ese día';
-  // Ventas
   const ventasH=movs.filter(m=>m.tipo==='venta'&&m.fechaISO===td);
   const tV=ventasH.reduce((s,m)=>s+m.monto,0);
   const tE=ventasH.reduce((s,m)=>s+(m.efectivo||0),0);
@@ -80,19 +77,15 @@ function renderCorte(){
     '💵 Efectivo: <strong>$'+tE.toFixed(2)+'</strong>&emsp;'+
     '💳 Tarjeta: <strong>$'+tT.toFixed(2)+'</strong>&emsp;'+
     '🏦 Transfer: <strong>$'+tTr.toFixed(2)+'</strong>';
-  // Movimientos
   const movsH=movs.filter(m=>['ingreso','retiro'].includes(m.tipo)&&m.fechaISO===td);
   const netoM=movsH.reduce((s,m)=>s+m.monto,0);
   g('cMovNeto').textContent=(netoM>=0?'+':'')+netoM.toFixed(2);
-  // Devoluciones
   const devsH=movs.filter(m=>m.tipo==='devolucion'&&m.fechaISO===td);
   const tDev=Math.abs(devsH.reduce((s,m)=>s+m.monto,0));
   g('cDevol').textContent='$'+tDev.toFixed(2);
   g('cDevolSub').textContent=devsH.length+' devoluciones';
-  // Total recaudado
   const debe=saldoIni+tV+netoM-tDev;
   g('cDebe').textContent='$'+debe.toFixed(2);
-  // Resumen por clasificación
   renderResumenClasif(td);
   if(isToday)calcCounter();
 }
@@ -149,6 +142,7 @@ function realizarCorte(){
   const td=getCorteDay();
   if(td!==today()){toast('Solo puedes imprimir el corte del día actual');return;}
   const caja=S.caja;
+  const config = getCompanyConfig();
   const movs=dba('movimientos').filter(m=>m.caja===caja);
   const saldoH=movs.filter(m=>m.tipo==='saldo_inicial'&&m.fechaISO===td);
   const lastS=saldoH.length?saldoH[saldoH.length-1]:null;
@@ -163,14 +157,12 @@ function realizarCorte(){
   const devsH=movs.filter(m=>m.tipo==='devolucion'&&m.fechaISO===td);
   const tDev=Math.abs(devsH.reduce((s,m)=>s+m.monto,0));
   const debe=saldoIni+tV+netoM-tDev;
-  // Contador
   let contado=0; const dlines=[];
   DENOMS.forEach((d,i)=>{
     const q=parseInt(g('den'+i).value)||0;
     if(q>0){const sub=q*d.v;contado+=sub;dlines.push(d.label+' × '+q+' = $'+sub.toFixed(2));}
   });
   const diff=contado-debe;
-  // Resumen por clasificación
   const hist=dba('historial').filter(v=>v.fechaISO===td&&v.caja===caja);
   const clasifMap={};
   hist.forEach(v=>v.items.forEach(it=>{
@@ -183,7 +175,10 @@ function realizarCorte(){
   const todayMovs=movs.filter(m=>m.fechaISO===td);
   const pa=g('printArea');
   pa.innerHTML=`
-    <h2>🐾 Perfect Pet — Corte de Caja</h2>
+    <h2>🐾 ${config.companyName} — Corte de Caja</h2>
+    <hr>
+    <p><b>${config.address}</b></p>
+    <p><b>${config.website}${config.phone ? ' | '+config.phone : ''}</b></p>
     <hr>
     <p><b>Fecha:</b> ${new Date(td+'T12:00:00').toLocaleDateString('es-MX')}</p>
     <p><b>Hora:</b> ${new Date().toLocaleTimeString('es-MX')}</p>
@@ -226,13 +221,12 @@ function realizarCorte(){
     </table>
     <hr>
     <p style="text-align:center">Corte: ${nowStr()}</p>
-    <p style="text-align:center">Sistema Perfect Pet</p>`;
+    <p style="text-align:center">Sistema ${config.companyName}</p>`;
   pa.style.display='block';window.print();
   setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},800);
   addMov({tipo:'ajuste',
     desc:'Corte realizado por '+S.user+'. Contado: $'+contado.toFixed(2)+', Dif: '+(diff>=0?'+':'')+'$'+diff.toFixed(2),
     monto:0,fechaISO:today(),fecha:nowStr(),caja:S.caja});
-  // Guardar el corte como registro histórico
   const corteRecord={
     id:'C-'+Date.now(), fecha:nowStr(), fechaISO:td, caja, realizadoPor:S.user,
     saldoIni, tV, tE, tT, tTr, ventasCount:ventasH.length,
@@ -272,11 +266,15 @@ function renderCortesHistorial(){
 function reprintCorte(id){
   const ct=dba('cortes').find(x=>x.id===id);
   if(!ct)return;
+  const config = getCompanyConfig();
   const clasifRows=Object.keys(ct.clasifMap||{}).sort().map(k=>`
     <tr><td>${k}</td><td align="right">$${ct.clasifMap[k].toFixed(2)}</td></tr>`).join('');
   const pa=g('printArea');
   pa.innerHTML=`
-    <h2>🐾 Perfect Pet — Corte de Caja</h2>
+    <h2>🐾 ${config.companyName} — Corte de Caja</h2>
+    <hr>
+    <p><b>${config.address}</b></p>
+    <p><b>${config.website}${config.phone ? ' | '+config.phone : ''}</b></p>
     <hr>
     <p><b>Fecha:</b> ${new Date(ct.fechaISO+'T12:00:00').toLocaleDateString('es-MX')}</p>
     <p><b>Caja:</b> ${ct.caja} &nbsp;|&nbsp; <b>Realizado por:</b> ${ct.realizadoPor}</p>
@@ -309,8 +307,7 @@ function reprintCorte(id){
     </tr>`).join('')}</tbody></table>
     <hr>
     <p style="text-align:center">Reimpreso: ${nowStr()}</p>
-    <p style="text-align:center">Sistema Perfect Pet</p>`;
+    <p style="text-align:center">Sistema ${config.companyName}</p>`;
   pa.style.display='block';window.print();
   setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},800);
 }
-

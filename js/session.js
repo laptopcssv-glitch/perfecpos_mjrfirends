@@ -8,7 +8,8 @@ function checkSetup(){
   }
 }
 function setLogoAll(){
-  const src='data:image/jpeg;base64,'+LOGO;
+  const logoData = getLogoDataUrl();
+  const src = logoData || 'data:image/jpeg;base64,'+LOGO;
   ['loginLogo','setupLogo','sidebarLogo'].forEach(id=>{const el=g(id);if(el)el.src=src;});
 }
 function doSetup(){
@@ -32,11 +33,17 @@ function doLogin(){
 }
 function doLogout(){db('session',null);location.reload();}
 function startApp(){
+  const config = getCompanyConfig();
   setLogoAll();
-  g('sidebarTxt').textContent=S.user+' | Caja '+S.caja;
+  document.title = config.companyName + ' - Sistema POS';
+  g('sidebarTxt').textContent=S.user+' | Caja '+S.caja + ' | ' + config.companyName;
   g('corteCajaLbl').textContent='— Caja '+S.caja;
   g('movCajaLbl').textContent='— Caja '+S.caja;
-  if(S.role==='admin'){g('adminSep').style.display='';g('btnUsuarios').style.display='';}
+  if(S.role==='admin'){
+    g('adminSep').style.display='';
+    g('btnUsuarios').style.display='';
+    g('btnConfiguracion').style.display='';
+  }
   buildDenomGrid();
   renderInventory();
   checkStockAlerts();
@@ -68,8 +75,9 @@ function sendRecoveryCode(){
   recTempCode=String(Math.floor(100000+Math.random()*900000));
   recTempUser=u;
   toast('📧 Enviando código...');
-  emailjs.init(EJS_KEY);
-  emailjs.send(EJS_SVC,EJS_TPL,{to_name:u,to_email:e,code:recTempCode})
+  const config = getCompanyConfig();
+  emailjs.init(config.emailjs.publicKey);
+  emailjs.send(config.emailjs.serviceId, config.emailjs.templateId,{to_name:u,to_email:e,code:recTempCode})
     .then(()=>{
       toast('✅ Código enviado a tu correo');
       g('recStep1').style.display='none';
